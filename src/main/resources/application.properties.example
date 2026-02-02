@@ -1,0 +1,11 @@
+kite.api.key=YOUR_API_KEY
+kite.access.token=YOUR_ACCESS_TOKEN
+
+nifty.fut.token=256265
+banknifty.fut.token=260105
+
+nifty.initial.price=24825
+banknifty.initial.price=52500
+
+nifty.strike.step=50
+banknifty.strike.step=100
