@@ -1,5 +1,6 @@
 package com.algo.helper;
 
+import com.algo.config.AppConfig;
 import com.algo.utils.Log;
 import com.zerodhatech.kiteconnect.KiteConnect;
 import com.zerodhatech.kiteconnect.kitehttp.exceptions.KiteException;
@@ -9,9 +10,10 @@ public class GenerateAccessToken {
 
     public static void main(String[] args) throws Exception, KiteException {
 
-        String apiKey = "dtvf5j4drx9k1ub9";
-        String apiSecret = "tgg8ntz4lj2aocbsz8st1njy6nxdl21u";
-        String requestToken = "C2cVteavulOY1UNc1ey5RPjKeLncNH3n";
+
+        String apiKey = AppConfig.get("kite.api.key");
+        String apiSecret = AppConfig.get("kite.api.secret");
+        String requestToken = AppConfig.get("kite.request.token");
 
         KiteConnect kite = new KiteConnect(apiKey);
         User user = kite.generateSession(requestToken, apiSecret);
