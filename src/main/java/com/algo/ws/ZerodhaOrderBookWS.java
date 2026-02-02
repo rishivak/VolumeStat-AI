@@ -1,12 +1,13 @@
 package com.algo.ws;
 
-import com.algo.analytics.OptionSignalEngine;
-import com.algo.analytics.OrderBookCalculator;
+import com.algo.analytics.*;
 import com.algo.engine.UnderlyingContext;
 import com.algo.model.DepthLevel;
 import com.algo.model.OptionMeta;
 import com.algo.model.OrderBookSnapshot;
+import com.algo.state.LastPriceCache;
 import com.algo.state.OrderBookState;
+import com.algo.trade.ScalpingTradeEngine;
 import com.algo.utils.Log;
 import com.zerodhatech.kiteconnect.KiteConnect;
 import com.zerodhatech.kiteconnect.kitehttp.exceptions.KiteException;
@@ -104,16 +105,20 @@ public class ZerodhaOrderBookWS {
         OrderBookState.update(token, curr);
 
         OrderBookSnapshot prev = OrderBookState.getPrev(token);
-        if (prev == null) return;
+        if (prev == null){
+            Log.info("Getting previous order book state for token : "+token);
+            return;
+        }
 
         // =====================================================
         // 🔹 FUTURES HANDLING
         // =====================================================
+        CandleBuilder.onTick(token, curr);
+        MicroBreakoutEngine.evaluate(token, CandleBuilder.getCandles(token));
         UnderlyingContext futCtx = futContexts.get(token);
         if (futCtx != null) {
-
+            LastPriceCache.update(token, curr.ltp);
             double pressure = OrderBookCalculator.weightedPressure(curr.bids, curr.asks);
-
             long aggression = OrderBookCalculator.aggression(prev, curr);
 
             // --- ladder diagnostic (5 depth)
@@ -121,10 +126,12 @@ public class ZerodhaOrderBookWS {
             long ask5 = curr.asks.stream().limit(5).mapToLong(a -> a.quantity).sum();
 
             double ladderP = bid5 / (double) (bid5 + ask5 + 1);
-
-            // 🔍 heartbeat every tick (safe)
-            Log.info(futCtx.name + " FUT | LTP=" + curr.ltp + " ladderP=" + round(ladderP) + " agg=" + aggression);
-
+            // 🔥 MOMENTUM IGNITION
+            MomentumIgnitionEngine.evaluate(futCtx.name, token, prev, curr, ladderP, pressure);
+            //  heartbeat every tick (safe)
+            Log.info(futCtx.name + " FUT | LTP=" + curr.ltp + " ladderP=" + round(ladderP)+" Pressure="+ pressure + " agg=" + aggression);
+            // 🔥 EXACT EXIT MANAGEMENT POINT
+            ScalpingTradeEngine.onTick(token, curr.ltp);
             return;
         }
 
@@ -136,12 +143,15 @@ public class ZerodhaOrderBookWS {
 
         OptionMeta opt = optionMetaMap.get(token);
         if (opt == null) return;
+        OptionConfidenceEngine.onOptionTick(opt,prev, curr);
 
         OrderBookSnapshot futCurr = OrderBookState.getCurr(optCtx.futToken);
         OrderBookSnapshot futPrev = OrderBookState.getPrev(optCtx.futToken);
 
         if (futCurr == null || futPrev == null) return;
-
+        VolatilityExpansionEngine.evaluate(opt, futPrev, futCurr, prev, curr);
+        // 🔥 OPTION PREMIUM FLOW
+        OptionPremiumFlowEngine.evaluate(opt, prev, curr);
         OptionSignalEngine.evaluateOption(opt, futPrev, futCurr, prev, curr);
     }
 
@@ -157,7 +167,7 @@ public class ZerodhaOrderBookWS {
 
         tick.getMarketDepth().get("sell").forEach(d -> asks.add(new DepthLevel(d.getPrice(), d.getQuantity())));
 
-        return new OrderBookSnapshot(System.currentTimeMillis(), tick.getLastTradedPrice(), bids, asks);
+        return new OrderBookSnapshot(System.currentTimeMillis(), tick.getLastTradedPrice(), tick.getVolumeTradedToday(), bids, asks);
     }
 
     private double round(double v) {

@@ -38,4 +38,13 @@ public class AppConfig {
     public static int getInt(String key) {
         return Integer.parseInt(get(key));
     }
+    public static boolean getBoolean(String key) {return Boolean.parseBoolean(get(key)); }
+    public static int getInt(String key, int def) {
+        String v = get(key);
+        return v == null ? def : Integer.parseInt(v);
+    }
+    public static double getDouble(String key, double def) {
+        String v = get(key);
+        return v == null ? def : Double.parseDouble(v);
+    }
 }
