@@ -1,42 +1,53 @@
 package com.algo.ws;
 
+import com.algo.analytics.OptionSignalEngine;
+import com.algo.analytics.OrderBookCalculator;
+import com.algo.engine.UnderlyingContext;
+import com.algo.model.DepthLevel;
+import com.algo.model.OptionMeta;
+import com.algo.model.OrderBookSnapshot;
+import com.algo.state.OrderBookState;
 import com.algo.utils.Log;
 import com.zerodhatech.kiteconnect.KiteConnect;
 import com.zerodhatech.kiteconnect.kitehttp.exceptions.KiteException;
 import com.zerodhatech.models.Tick;
 import com.zerodhatech.ticker.*;
 
-import com.algo.engine.UnderlyingContext;
-import com.algo.model.DepthLevel;
-import com.algo.model.OrderBookSnapshot;
-import com.algo.model.OptionMeta;
-import com.algo.state.OrderBookState;
-import com.algo.analytics.OptionSignalEngine;
-import com.algo.analytics.OrderBookCalculator;
-
 import java.util.*;
 
+/**
+ * Zerodha WebSocket handler for FUT + OPTION orderbook tracking
+ */
 public class ZerodhaOrderBookWS {
 
     private KiteTicker ticker;
-    // heartbeat limiter (per futures token)
-    private final Map<Long, Long> lastHeartbeat = new HashMap<>();
 
     // futToken -> context
-    private final Map<Long, UnderlyingContext> contexts = new HashMap<>();
+    private final Map<Long, UnderlyingContext> futContexts = new HashMap<>();
 
     // optionToken -> context
-    private final Map<Long, UnderlyingContext> optionToContext = new HashMap<>();
+    private final Map<Long, UnderlyingContext> optionContexts = new HashMap<>();
 
-    public ZerodhaOrderBookWS(List<UnderlyingContext> ctxList) {
-        for (UnderlyingContext ctx : ctxList) {
-            contexts.put(ctx.futToken, ctx);
-            ctx.options.forEach((token, opt) -> optionToContext.put(token, ctx));
+    // optionToken -> option meta
+    private final Map<Long, OptionMeta> optionMetaMap = new HashMap<>();
+
+    // =====================================================
+    // 🧠 CONSTRUCTOR
+    // =====================================================
+    public ZerodhaOrderBookWS(List<UnderlyingContext> contexts) {
+
+        for (UnderlyingContext ctx : contexts) {
+            futContexts.put(ctx.futToken, ctx);
+
+            ctx.options.forEach((token, opt) -> {
+                optionContexts.put(token, ctx);
+                optionMetaMap.put(token, opt);
+            });
         }
     }
 
     // =====================================================
-    // 🚀 START
+    // 🚀 START WS
     // =====================================================
     public void start(KiteConnect kite, List<Long> tokens) throws KiteException {
 
@@ -57,19 +68,20 @@ public class ZerodhaOrderBookWS {
 
             @Override
             public void onError(KiteException e) {
-                System.err.println(e.message);
+                Log.error(e.message);
             }
 
             @Override
             public void onError(String error) {
-                System.err.println(error);
+                Log.error(error);
             }
         });
 
         ticker.setOnTickerArrivalListener(ticks -> {
-            for (Tick tick : ticks) handleTick(tick);
+            for (Tick tick : ticks) {
+                handleTick(tick);
+            }
         });
-
 
         ticker.setTryReconnection(true);
         ticker.setMaximumRetries(10);
@@ -92,46 +104,38 @@ public class ZerodhaOrderBookWS {
         OrderBookState.update(token, curr);
 
         OrderBookSnapshot prev = OrderBookState.getPrev(token);
+        if (prev == null) return;
 
         // =====================================================
-        // 🚀 FUTURES — NO WARM-UP BLOCK
+        // 🔹 FUTURES HANDLING
         // =====================================================
-        UnderlyingContext ctx = contexts.get(token);
-        if (ctx != null) {
-
-            // prev may be null on first tick → skip aggression only
-            if (prev == null) return;
+        UnderlyingContext futCtx = futContexts.get(token);
+        if (futCtx != null) {
 
             double pressure = OrderBookCalculator.weightedPressure(curr.bids, curr.asks);
 
             long aggression = OrderBookCalculator.aggression(prev, curr);
 
-            long now = System.currentTimeMillis();
-            long last = lastHeartbeat.getOrDefault(token, 0L);
+            // --- ladder diagnostic (5 depth)
+            long bid5 = curr.bids.stream().limit(5).mapToLong(b -> b.quantity).sum();
+            long ask5 = curr.asks.stream().limit(5).mapToLong(a -> a.quantity).sum();
 
-            if (now - last >= 1000) {
-                lastHeartbeat.put(token, now);
+            double ladderP = bid5 / (double) (bid5 + ask5 + 1);
 
-                long bid5 = curr.bids.stream().limit(5).mapToLong(b -> b.quantity).sum();
-                long ask5 = curr.asks.stream().limit(5).mapToLong(a -> a.quantity).sum();
+            // 🔍 heartbeat every tick (safe)
+            Log.info(futCtx.name + " FUT | LTP=" + curr.ltp + " ladderP=" + round(ladderP) + " agg=" + aggression);
 
-                double ladderPressure = bid5 / (double) (bid5 + ask5 + 1);
-
-                Log.info(ctx.name + " LADDER | LTP=" + curr.ltp + " bid5=" + bid5 + " ask5=" + ask5 + " ladderP=" + round(ladderPressure));
-            }
-
-            return; // ✅ IMPORTANT
+            return;
         }
 
         // =====================================================
-        // 🎯 OPTIONS — REQUIRE FULL WARM-UP
+        // 🔹 OPTION HANDLING
         // =====================================================
-        UnderlyingContext optCtx = optionToContext.get(token);
+        UnderlyingContext optCtx = optionContexts.get(token);
         if (optCtx == null) return;
 
-        if (prev == null) return; // options must wait
-
-        OptionMeta opt = optCtx.options.get(token);
+        OptionMeta opt = optionMetaMap.get(token);
+        if (opt == null) return;
 
         OrderBookSnapshot futCurr = OrderBookState.getCurr(optCtx.futToken);
         OrderBookSnapshot futPrev = OrderBookState.getPrev(optCtx.futToken);
@@ -142,7 +146,7 @@ public class ZerodhaOrderBookWS {
     }
 
     // =====================================================
-    // 🧱 SNAPSHOT
+    // 🧱 BUILD SNAPSHOT
     // =====================================================
     private OrderBookSnapshot buildSnapshot(Tick tick) {
 
