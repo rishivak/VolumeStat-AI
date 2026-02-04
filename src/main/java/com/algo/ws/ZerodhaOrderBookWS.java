@@ -114,7 +114,7 @@ public class ZerodhaOrderBookWS {
         // 🔹 FUTURES HANDLING
         // =====================================================
         CandleBuilder.onTick(token, curr);
-        MicroBreakoutEngine.evaluate(token, CandleBuilder.getCandles(token));
+//        MicroBreakoutEngine.evaluate(token, CandleBuilder.getCandles(token));
         UnderlyingContext futCtx = futContexts.get(token);
         if (futCtx != null) {
             LastPriceCache.update(token, curr.ltp);
@@ -129,7 +129,7 @@ public class ZerodhaOrderBookWS {
             // 🔥 MOMENTUM IGNITION
             MomentumIgnitionEngine.evaluate(futCtx.name, token, prev, curr, ladderP, pressure);
             //  heartbeat every tick (safe)
-            Log.info(futCtx.name + " FUT | LTP=" + curr.ltp + " ladderP=" + round(ladderP)+" Pressure="+ pressure + " agg=" + aggression);
+//            Log.info(futCtx.name + " FUT | LTP=" + curr.ltp + " ladderP=" + round(ladderP)+" Pressure="+ pressure + " agg=" + aggression);
             // 🔥 EXACT EXIT MANAGEMENT POINT
             ScalpingTradeEngine.onTick(token, curr.ltp);
             return;
@@ -143,13 +143,13 @@ public class ZerodhaOrderBookWS {
 
         OptionMeta opt = optionMetaMap.get(token);
         if (opt == null) return;
-        OptionConfidenceEngine.onOptionTick(opt,prev, curr);
+//        OptionConfidenceEngine.onOptionTick(opt,prev, curr);
 
         OrderBookSnapshot futCurr = OrderBookState.getCurr(optCtx.futToken);
         OrderBookSnapshot futPrev = OrderBookState.getPrev(optCtx.futToken);
 
         if (futCurr == null || futPrev == null) return;
-        VolatilityExpansionEngine.evaluate(opt, futPrev, futCurr, prev, curr);
+//        VolatilityExpansionEngine.evaluate(opt, futPrev, futCurr, prev, curr);
         // 🔥 OPTION PREMIUM FLOW
         OptionPremiumFlowEngine.evaluate(opt, prev, curr);
         OptionSignalEngine.evaluateOption(opt, futPrev, futCurr, prev, curr);

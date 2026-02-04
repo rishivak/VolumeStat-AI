@@ -40,10 +40,10 @@ public class MomentumIgnitionEngine {
         double pricePct = (w.lastPrice - w.startPrice) / w.startPrice * 100.0;
         long aggression = OrderBookCalculator.aggression(prev, curr);
         // thresholds (safe defaults)
-        boolean up1 = pricePct > 0.05 && aggression > 500 && ladderP > 0.65;
-        boolean down1 = pricePct < -0.05 && aggression < -500 && ladderP < 0.35;
-        boolean up = pricePct > 0.05 && aggression > 500 && ladderP > 0.65 && pressure > 0.55;
-        boolean down = pricePct < -0.05 && aggression < -500 && ladderP < 0.35 && pressure < 0.45;
+        boolean up = pricePct > 0.05 && aggression > 500 && ladderP > 0.65;
+        boolean down = pricePct < -0.05 && aggression < -500 && ladderP < 0.35;
+//        boolean up = pricePct > 0.05 && aggression > 500 && ladderP > 0.65 && pressure > 0.55;
+//        boolean down = pricePct < -0.05 && aggression < -500 && ladderP < 0.35 && pressure < 0.45;
 
         if (up) {
             int score = ignitionScore(pricePct, aggression, ladderP,pressure);

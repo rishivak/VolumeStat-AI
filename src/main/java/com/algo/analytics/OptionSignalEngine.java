@@ -30,11 +30,11 @@ public class OptionSignalEngine {
         // 3️⃣ EVENT-LEVEL SIGNAL (STRONG MOVE)
         // =====================================================
         // 🟢 CALL BUY (Momentum)
-        if ("CE".equals(meta.type) && futPressure > 0.60 && futAggression > 250 && optPressure > 0.55 && optAggression > 150 && velocity > 0) {
+        if ("CE".equals(meta.type) && futPressure > 0.65 && futAggression > 400 && optPressure > 0.55 && optAggression > 150 && velocity > 0) {
             Log.info("🟢 BUY CALL | strike=" + meta.strike + " futP=" + round(futPressure) + " futAgg=" + futAggression + " optAgg=" + optAggression);
         }
         // 🔴 PUT BUY (Momentum)
-        if ("PE".equals(meta.type) && futPressure < 0.40 && futAggression < -250 && optPressure < 0.45 && optAggression < -150 && velocity < 0) {
+        if ("PE".equals(meta.type) && futPressure < 0.35 && futAggression < -400 && optPressure < 0.45 && optAggression < -150 && velocity < 0) {
             Log.info("🔴 BUY PUT | strike=" + meta.strike + " futP=" + round(futPressure) + " futAgg=" + futAggression + " optAgg=" + optAggression);
         }
         // =====================================================
@@ -44,13 +44,13 @@ public class OptionSignalEngine {
         long futAsk5 = futCurr.asks.stream().limit(5).mapToLong(a -> a.quantity).sum();
         double ladderPressure = futBid5 / (double) (futBid5 + futAsk5 + 1);
         // ⚡ SCALP CALL (ladder imbalance)
-        if ("CE".equals(meta.type) && ladderPressure > 0.58 && velocity > 0) {
-            Log.info("⚡ SCALP CALL | strike=" + meta.strike + " ladderP=" + round(ladderPressure) + " vel=" + round(velocity));
-        }
-        // ⚡ SCALP PUT (ladder imbalance)
-        if ("PE".equals(meta.type) && ladderPressure < 0.42 && velocity < 0) {
-            Log.info("⚡ SCALP PUT | strike=" + meta.strike + " ladderP=" + round(ladderPressure) + " vel=" + round(velocity));
-        }
+//        if ("CE".equals(meta.type) && ladderPressure > 0.58 && velocity > 0) {
+//            Log.info("⚡ SCALP CALL | strike=" + meta.strike + " ladderP=" + round(ladderPressure) + " vel=" + round(velocity));
+//        }
+//        // ⚡ SCALP PUT (ladder imbalance)
+//        if ("PE".equals(meta.type) && ladderPressure < 0.42 && velocity < 0) {
+//            Log.info("⚡ SCALP PUT | strike=" + meta.strike + " ladderP=" + round(ladderPressure) + " vel=" + round(velocity));
+//        }
     }
     private static double round(double v) {
         return Math.round(v * 1000.0) / 1000.0;
