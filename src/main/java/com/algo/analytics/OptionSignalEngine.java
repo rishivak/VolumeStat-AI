@@ -26,6 +26,31 @@ public class OptionSignalEngine {
         double optPressure = OrderBookCalculator.weightedPressure(optCurr.bids, optCurr.asks);
         long optAggression = OrderBookCalculator.aggression(optPrev, optCurr);
         double velocity = OrderBookCalculator.priceVelocity(optPrev, optCurr);
+        // Advanced: CVD + surge from all available tick fields (volume/OI/LTP/depth)
+        AdvancedOptionFlowEngine.Result flow = AdvancedOptionFlowEngine.evaluate(
+                meta.optionToken,
+                meta.symbol,
+                optPrev,
+                optCurr
+        );
+
+        if (flow.surge) {
+            String side = flow.delta >= 0 ? "BUY_PRESSURE" : "SELL_PRESSURE";
+            Log.info("FLOW_SURGE | " + meta.symbol
+                    + " strike=" + meta.strike
+                    + " type=" + meta.type
+                    + " side=" + side
+                    + " score=" + round(flow.score)
+                    + " delta=" + flow.delta
+                    + " cvd=" + flow.cvd
+                    + " dVol=" + flow.dVol
+                    + " dOi=" + flow.dOi
+                    + " spr=" + round(flow.spread)
+                    + " imb=" + round(flow.imbalance)
+                    + " microShift=" + round(flow.microShift)
+                    + " zD=" + round(flow.zAbsDelta)
+                    + " zV=" + round(flow.zDVol));
+        }
         // =====================================================
         // 3️⃣ EVENT-LEVEL SIGNAL (STRONG MOVE)
         // =====================================================
@@ -40,9 +65,9 @@ public class OptionSignalEngine {
         // =====================================================
         // 4️⃣ 🔁 FREQUENT LADDER-BASED MICRO SIGNAL (PART 3)
         // =====================================================
-        long futBid5 = futCurr.bids.stream().limit(5).mapToLong(b -> b.quantity).sum();
-        long futAsk5 = futCurr.asks.stream().limit(5).mapToLong(a -> a.quantity).sum();
-        double ladderPressure = futBid5 / (double) (futBid5 + futAsk5 + 1);
+//        long futBid5 = futCurr.bids.stream().limit(5).mapToLong(b -> b.quantity).sum();
+//        long futAsk5 = futCurr.asks.stream().limit(5).mapToLong(a -> a.quantity).sum();
+//        double ladderPressure = futBid5 / (double) (futBid5 + futAsk5 + 1);
         // ⚡ SCALP CALL (ladder imbalance)
 //        if ("CE".equals(meta.type) && ladderPressure > 0.58 && velocity > 0) {
 //            Log.info("⚡ SCALP CALL | strike=" + meta.strike + " ladderP=" + round(ladderPressure) + " vel=" + round(velocity));

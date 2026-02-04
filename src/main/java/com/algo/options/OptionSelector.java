@@ -24,7 +24,7 @@ public class OptionSelector {
         int atm = (int) (Math.round(futPrice / step) * step);
         Set<Integer> strikes = Set.of(atm - step, atm, atm + step);
         // 4️⃣ Select options
-        List<OptionMeta> result = filtered.stream().filter(i -> i.expiry.equals(nearestExpiry)).filter(i -> strikes.contains(i.strike)).map(i -> new OptionMeta(i.token, futToken, i.type, i.strike, i.lotSize)).collect(Collectors.toList());
+        List<OptionMeta> result = filtered.stream().filter(i -> i.expiry.equals(nearestExpiry)).filter(i -> strikes.contains(i.strike)).map(i -> new OptionMeta(i.token, futToken, i.type, i.strike, i.lotSize,i.tradingSymbol)).collect(Collectors.toList());
 
         Log.info(underlying + " | Selected " + result.size() + " options | expiry=" + nearestExpiry + " ATM=" + atm);
 
